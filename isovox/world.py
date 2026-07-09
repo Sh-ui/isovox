@@ -5,6 +5,8 @@ construction (kaiju games just del cells). Entities are movable voxel models
 with float positions; physics.py moves them, raster.py draws them.
 """
 
+from __future__ import annotations
+
 import math
 from itertools import count
 

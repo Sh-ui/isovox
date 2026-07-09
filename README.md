@@ -32,7 +32,7 @@ redraw 30 times a second.
 
 ## Install
 
-Needs Python 3.10+. No dependencies for playing in the terminal.
+Needs Python 3.9+. No dependencies for playing in the terminal.
 
 ```sh
 git clone <this repo> && cd isovox

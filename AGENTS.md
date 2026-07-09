@@ -44,7 +44,7 @@ death) is easy to test with the headless adapters -- see
    `.ivx` assets. Don't patch engine files to make one game work; if the
    engine genuinely lacks something, add it as a general feature with a test.
 3. **Zero mandatory dependencies.** The playable path must keep working on a
-   bare Python 3.10+ install. Pillow stays optional.
+   bare Python 3.9+ install. Pillow stays optional.
 4. **Small files, small functions.** The whole engine is ~1k lines; keep it
    readable in one sitting.
 

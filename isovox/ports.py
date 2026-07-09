@@ -4,8 +4,10 @@ The core (world, physics, raster, engine) depends only on these shapes.
 Adapters (terminal, headless, PNG, or anything you write) plug in here.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Protocol, Union, runtime_checkable
 
 from .buffer import CharBuffer
 
@@ -23,7 +25,7 @@ class Quit:
     """The player or platform asked to stop (Ctrl-C, q, window close...)."""
 
 
-Event = Key | Quit
+Event = Union[Key, Quit]   # typing.Union, not `|`: runtime-evaluated, Py3.9 target
 
 
 # -- ports ----------------------------------------------------------------

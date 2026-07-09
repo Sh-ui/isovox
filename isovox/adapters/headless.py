@@ -13,6 +13,8 @@ This is how tests -- and AI agents building games -- drive the engine:
 See also `python -m isovox.snapshot` for the one-line CLI version.
 """
 
+from __future__ import annotations
+
 from ..buffer import CharBuffer
 from ..ports import Event, Key, Quit
 

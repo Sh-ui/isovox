@@ -4,6 +4,8 @@ Two uses: wallpaper-grade stills of game scenes, and letting an AI agent
 (or a human on the other end of a chat) *see* a frame with real colors.
 """
 
+from __future__ import annotations
+
 import os
 
 from ..buffer import CharBuffer

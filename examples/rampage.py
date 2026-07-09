@@ -4,6 +4,8 @@ Run it:     python -m examples.rampage      (from the repo root)
 Peek at it: python -m isovox.snapshot examples.rampage --frames 40 --ansi
 """
 
+from __future__ import annotations
+
 import os
 import random
 

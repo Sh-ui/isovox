@@ -7,6 +7,8 @@ and stops (zeroing that velocity component) if the entity's footprint would
 enter a solid cell. Gravity pulls h down until supported.
 """
 
+from __future__ import annotations
+
 import math
 
 from .world import World, Entity

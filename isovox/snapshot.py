@@ -10,6 +10,8 @@ The module must expose a Game subclass; the first one found is used, or name
 it explicitly with module:ClassName.
 """
 
+from __future__ import annotations
+
 import argparse
 import importlib
 import inspect

@@ -5,6 +5,8 @@ The renderer keeps the previous frame and only rewrites cells that changed,
 batching color changes -- comfortably 30+ fps on a normal terminal.
 """
 
+from __future__ import annotations
+
 import os
 import select
 import shutil

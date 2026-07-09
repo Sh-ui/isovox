@@ -12,6 +12,8 @@ Public API. Everything a game needs:
         run(My())
 """
 
+from __future__ import annotations
+
 __version__ = "0.1.0"
 
 from .buffer import CharBuffer

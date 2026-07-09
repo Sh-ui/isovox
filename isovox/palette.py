@@ -4,6 +4,8 @@ Everything downstream works with plain "#rrggbb" strings. Shading toward the
 background is precomputed and cached so the raster loop never does hex math.
 """
 
+from __future__ import annotations
+
 from functools import lru_cache
 
 # House palette (from the umbra circuit wallpaper). Games may use any hex color;

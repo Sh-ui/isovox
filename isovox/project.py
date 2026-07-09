@@ -12,6 +12,8 @@ later and overwrite what is behind them. Height is handled inside a column by
 drawing stacks bottom-up.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 

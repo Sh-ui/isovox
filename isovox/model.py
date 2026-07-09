@@ -16,6 +16,8 @@ Within a layer, each text line advances u by 1 (down-right axis) and each
 character advances v by 1 (down-left axis). Layers stack upward in h.
 """
 
+from __future__ import annotations
+
 from .palette import resolve
 
 Voxel = tuple[str, str]  # (glyph, "#rrggbb")

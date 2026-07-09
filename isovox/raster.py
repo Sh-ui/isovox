@@ -6,6 +6,8 @@ contiguous stacks as a 2x2-char top face plus one wall row per voxel of
 height (left char lit, right char dark). Painter order gives occlusion free.
 """
 
+from __future__ import annotations
+
 from .buffer import CharBuffer
 from .palette import glint, shades
 from .project import Camera

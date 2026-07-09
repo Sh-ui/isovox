@@ -11,6 +11,8 @@
 Engine(...) with headless adapters and step it by hand. Same core either way.
 """
 
+from __future__ import annotations
+
 import time
 
 from . import physics

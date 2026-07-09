@@ -5,6 +5,8 @@ the boundary object between the pure raster code and any renderer adapter
 (terminal, PNG, snapshot); it knows nothing about ANSI or fonts.
 """
 
+from __future__ import annotations
+
 from .palette import UMBRA, resolve
 
 Cell = tuple[str, str]  # (single char, "#rrggbb")
