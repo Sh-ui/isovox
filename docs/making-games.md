@@ -47,7 +47,7 @@ self.world.set(u, v, h, "green", ".")        # one voxel (color, glyph)
 self.world.fill(0, 0, 10, 10, 0, 1, "slate") # box, half-open ranges
 self.world.stamp(model, u, v, h)             # bake a VoxModel in
 self.world.clear(u, v, h)                    # remove one voxel
-self.world.carve(u, v, h, radius=2)          # blast a cube, returns count
+self.world.carve(u, v, h, radius=2)          # blast a cube, returns the voxels
 self.world.is_solid(u, v, h)                 # query
 ```
 
@@ -99,8 +99,8 @@ e = self.world.spawn(Entity(model, pos=(u, v, h),
 - Move by setting `e.vel = [du_per_sec, dv_per_sec, dh_per_sec]` or by
   assigning `e.pos` directly (teleport-style hops -- check
   `world.is_solid` first).
-- Jump: `e.vel[2] = 8.0` while `e.on_ground`. Gravity is 22 cells/s^2;
-  peak rise is `v*v / 44` cells, so 8.0 clears a 1-high ledge.
+- Jump: `e.vel[2] = 9.0` while `e.on_ground`. Gravity defaults to 30
+  cells/s^2 and is tunable (`world.gravity`); peak rise is `v*v / (2*g)`.
 - Despawn: `e.alive = False` (removed at end of frame).
 - Solid entities are blocked by **terrain** automatically; entity-vs-entity
   overlaps don't block, they call your `on_collide(a, b)` -- decide there
