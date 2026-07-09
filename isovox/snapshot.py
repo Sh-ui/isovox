@@ -40,6 +40,8 @@ def main(argv=None) -> None:
     ap.add_argument("--size", default="100x34", help="COLSxROWS")
     ap.add_argument("--ansi", action="store_true", help="print with truecolor")
     ap.add_argument("--png", default="", help="also save the frame as PNG (needs Pillow)")
+    ap.add_argument("--ratio", type=float, default=2.0,
+                    help="PNG cell height/width; 2.0 = terminal-like, 1.16 = square grid")
     args = ap.parse_args(argv)
 
     game = load_game(args.game)
@@ -55,7 +57,7 @@ def main(argv=None) -> None:
         eng.frame()
     if args.png:
         from .adapters.png import save_png
-        print(save_png(snap.buf, args.png), file=sys.stderr)
+        print(save_png(snap.buf, args.png, cell_ratio=args.ratio), file=sys.stderr)
     print(snap.ansi() if args.ansi else snap.text())
 
 

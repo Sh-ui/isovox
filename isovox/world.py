@@ -23,7 +23,8 @@ class Entity:
     """
 
     def __init__(self, model: VoxModel, pos=(0.0, 0.0, 0.0), *,
-                 solid: bool = True, gravity: bool = False, tag: str = ""):
+                 solid: bool = True, gravity: bool = False, tag: str = "",
+                 ttl: float | None = None):
         self.id = next(_ids)
         self.model = model
         self.pos = list(map(float, pos))   # [u, v, h]
@@ -33,6 +34,7 @@ class Entity:
         self.on_ground = False
         self.tag = tag              # free-form label games filter on
         self.alive = True           # set False to despawn at end of frame
+        self.ttl = ttl              # seconds to live (None = forever); engine reaps
 
     @property
     def footprint(self) -> tuple[int, int, int]:
@@ -63,6 +65,7 @@ class World:
         self.floor_h = floor_h
         # bumped on every terrain change; raster caches terrain columns by it
         self.version = 0
+        self.gravity = 30.0     # cells/s^2; crank it for snappy arcade hops
 
     # -- terrain ---------------------------------------------------------
     def set(self, u: int, v: int, h: int, color: str, glyph: str = "#") -> None:
@@ -89,14 +92,20 @@ class World:
             self.terrain[(u + mu, v + mv, h + mh)] = vox
         self.version += 1
 
-    def carve(self, u: int, v: int, h: int, radius: int = 1) -> int:
-        """Remove terrain in a cube around a point; returns voxels removed."""
-        removed = 0
+    def carve(self, u: int, v: int, h: int, radius: int = 1) -> list:
+        """Remove terrain in a cube around a point.
+
+        Returns the removed voxels as [((u, v, h), (glyph, color)), ...] --
+        feed them to isovox.fx.debris for flying-rubble effects.
+        """
+        removed = []
         for du in range(-radius, radius + 1):
             for dv in range(-radius, radius + 1):
                 for dh in range(-radius, radius + 1):
-                    if self.terrain.pop((u + du, v + dv, h + dh), None) is not None:
-                        removed += 1
+                    key = (u + du, v + dv, h + dh)
+                    vox = self.terrain.pop(key, None)
+                    if vox is not None:
+                        removed.append((key, vox))
         if removed:
             self.version += 1
         return removed

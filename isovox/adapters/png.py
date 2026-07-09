@@ -19,7 +19,10 @@ _FONTS = [
 
 
 def save_png(buf: CharBuffer, path: str, font_size: int = 14,
-             supersample: int = 2) -> str:
+             supersample: int = 2, cell_ratio: float = 2.0) -> str:
+    """cell_ratio = row height / char width. 2.0 simulates a terminal
+    (pairs with metrics="wide"); 1.16 is the wallpaper's square-ish grid
+    (pairs with metrics="square")."""
     try:
         from PIL import Image, ImageDraw, ImageFont
     except ImportError:
@@ -36,7 +39,7 @@ def save_png(buf: CharBuffer, path: str, font_size: int = 14,
 
     probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
     cw = probe.textlength("M", font=font)
-    rh = round(cw * 2.0)   # ~2:1 cell like a terminal
+    rh = round(cw * cell_ratio)
     W, H = round(buf.width * cw), buf.height * rh
     img = Image.new("RGB", (W, H), buf.bg)
     d = ImageDraw.Draw(img)

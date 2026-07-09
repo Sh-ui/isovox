@@ -10,6 +10,7 @@ import os
 import random
 
 from isovox import Entity, Game, VoxModel, run
+from isovox import fx
 from isovox.palette import UMBRA, lerp
 
 ASSETS = os.path.join(os.path.dirname(__file__), "..", "isovox", "assets")
@@ -34,28 +35,39 @@ class Rampage(Game):
                 tower = VoxModel.box(w, d, hgt, lerp(color, UMBRA, 0.25), "#")
                 self.world.stamp(tower, bu + 1, bv + 1, 1)
 
+        self.kaiju_base = VoxModel.load(os.path.join(ASSETS, "kaiju.ivx"))
         self.kaiju = self.world.spawn(Entity(
-            VoxModel.load(os.path.join(ASSETS, "kaiju.ivx")),
-            pos=(CITY // 2, CITY // 2, 1), gravity=True, tag="kaiju"))
+            self.kaiju_base, pos=(CITY // 2, CITY // 2, 1),
+            gravity=True, tag="kaiju"))
         self.camera.follow(self.kaiju)
         self.smashed = 0
         self.facing = (1, 0)
+        self.t = 0.0
+        self.move_until = 0.0    # walk keeps going briefly past the last repeat
 
     def update(self, dt, events):
+        self.t += dt
         k = self.kaiju
-        k.vel[0] = k.vel[1] = 0.0
         for e in events:
             du, dv = {"up": (-1, 0), "down": (1, 0),
                       "left": (0, 1), "right": (0, -1)}.get(e.name, (0, 0))
             if du or dv:
                 self.facing = (du, dv)
-                k.vel[0], k.vel[1] = du * 7.0, dv * 7.0
+                # one .ivx, four facings: the sprite turns as it walks
+                turns = {(1, 0): 0, (0, 1): 1, (-1, 0): 2, (0, -1): 3}
+                k.model = self.kaiju_base.rotated(turns[self.facing])
+                k.vel[0], k.vel[1] = du * 8.0, dv * 8.0
+                self.move_until = self.t + 0.55   # outlast the repeat delay
             elif e.name == " ":
                 fu, fv = self.facing
                 cu = round(k.pos[0]) + fu * 2
                 cv = round(k.pos[1]) + fv * 2
                 for h in (1, 3, 5):      # swipe a column of the building face
-                    self.smashed += self.world.carve(cu, cv, h, radius=1)
+                    rubble = self.world.carve(cu, cv, h, radius=1)
+                    self.smashed += len(rubble)
+                    fx.debris(self.world, rubble)
+        if self.t >= self.move_until:
+            k.vel[0] = k.vel[1] = 0.0
 
     def draw_hud(self, buf):
         buf.text(0, 2, f" voxels smashed: {self.smashed} ", "yellow")

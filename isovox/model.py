@@ -32,6 +32,25 @@ class VoxModel:
         else:
             self.size = (0, 0, 0)
 
+    def rotated(self, quarters: int) -> "VoxModel":
+        """This model rotated by quarter turns around the h axis (cached).
+
+        The lazy way to face a sprite in 4 directions: author one .ivx,
+        then `entity.model = base.rotated(k)` as it turns.
+        """
+        q = quarters % 4
+        if q == 0:
+            return self
+        cache = getattr(self, "_rot_cache", None)
+        if cache is None:
+            cache = self._rot_cache = {}
+        if q not in cache:
+            du = self.size[0]
+            vox = {(v, du - 1 - u, h): x for (u, v, h), x in self.voxels.items()}
+            model = VoxModel(vox)
+            cache[q] = model if q == 1 else VoxModel.rotated(model, q - 1)
+        return cache[q]
+
     @classmethod
     def box(cls, du: int, dv: int, dh: int, color: str, glyph: str = "#") -> "VoxModel":
         """Solid cuboid -- handy for buildings and placeholders."""

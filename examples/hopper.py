@@ -15,7 +15,7 @@ from isovox.palette import UMBRA, lerp
 ASSETS = os.path.join(os.path.dirname(__file__), "..", "isovox", "assets")
 
 LANES = 60          # how far the road stretches ahead
-WIDTH = 14          # playfield half-width along v
+WIDTH = 10          # playfield half-width along v
 START_U = 4
 
 
@@ -34,11 +34,9 @@ class Hopper(Game):
             if is_road:
                 self.roads.add(u)
             base = self.road if is_road else self.grass
-            color = lerp(base, UMBRA, 0.14) if u % 2 else base   # lane banding
+            color = lerp(base, UMBRA, 0.10) if u % 2 else base   # lane banding
             for v in range(-WIDTH, WIDTH + 1):
-                glyph = "-" if is_road else \
-                        ("." if self.rng.random() < 0.3 else " ")
-                self.world.set(u, v, 0, color, glyph)
+                self.world.set(u, v, 0, color, "-" if is_road else ".")
             if is_road:
                 self._spawn_cars(u)
             else:
@@ -46,6 +44,8 @@ class Hopper(Game):
                     if u < START_U - 1:
                         self.world.stamp(self.tree, u, v, 1)
 
+        self.world.gravity = 60.0        # short snappy hop arcs
+        self.pending = None              # buffered input: land -> hop immediately
         self.player = self.world.spawn(Entity(
             VoxModel.load(os.path.join(ASSETS, "guy.ivx")),
             pos=(START_U, 0, 1), gravity=True, tag="player"))
@@ -53,7 +53,7 @@ class Hopper(Game):
         self.best = 0
 
     def _spawn_cars(self, u):
-        speed = self.rng.choice([4.0, 6.0, 8.0]) * self.rng.choice([1, -1])
+        speed = self.rng.choice([3.0, 4.5, 6.0]) * self.rng.choice([1, -1])
         for i in range(self.rng.randint(1, 2)):
             v = self.rng.uniform(-WIDTH, WIDTH)
             car = self.world.spawn(Entity(self.car_model, pos=(u, v, 1), tag="car"))
@@ -61,14 +61,20 @@ class Hopper(Game):
 
     def update(self, dt, events):
         p = self.player
+        # buffer the newest direction; consume it the moment we can hop.
+        # (keys pressed mid-hop land the next hop instead of vanishing)
         for e in events:
-            du, dv = {"up": (-1, 0), "down": (1, 0),
-                      "left": (0, 1), "right": (0, -1)}.get(e.name, (0, 0))
-            if (du or dv) and p.on_ground:
-                nu, nv = round(p.pos[0]) + du, round(p.pos[1]) + dv
-                if abs(nv) <= WIDTH and not self.world.is_solid(nu, nv, 1):
-                    p.pos[0], p.pos[1] = float(nu), float(nv)
-                    p.vel[2] = 5.0       # hop arc
+            d = {"up": (-1, 0), "down": (1, 0),
+                 "left": (0, 1), "right": (0, -1)}.get(e.name)
+            if d:
+                self.pending = d
+        if self.pending and p.on_ground:
+            du, dv = self.pending
+            self.pending = None
+            nu, nv = round(p.pos[0]) + du, round(p.pos[1]) + dv
+            if abs(nv) <= WIDTH and not self.world.is_solid(nu, nv, 1):
+                p.pos[0], p.pos[1] = float(nu), float(nv)
+                p.vel[2] = 9.0           # with gravity 60: ~0.3s, ~0.7 cell arc
         # cars wrap around the playfield edges
         for car in self.world.by_tag("car"):
             if car.pos[1] > WIDTH + 4:

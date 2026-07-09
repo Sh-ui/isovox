@@ -176,3 +176,30 @@ from Python with `SnapshotRenderer` / `ScriptedInput` / `FixedClock` from
 - **Kaiju** (`rampage.py`): city = `VoxModel.box` towers stamped into
   terrain; smashing = `world.carve` in front of the player; score = voxels
   removed.
+
+## 12. Feel: the two input recipes, refined
+
+- **Buffered hops** (hopper): store the newest direction key; consume it the
+  moment `on_ground` is true. Keys pressed mid-hop trigger the next hop
+  instead of vanishing. Never gate reads on `on_ground` -- gate the *move*.
+- **Hold-to-walk** (rampage): on an arrow event set velocity AND a deadline
+  (`self.move_until = self.t + 0.55`); zero velocity only past the deadline.
+  Terminals stream key repeats with a gap after the first press -- the
+  deadline bridges it so walking doesn't stutter.
+- Hops feel snappy when the arc is short: `world.gravity = 60` with
+  `vel[2] = 9` gives a ~0.3s hop. Default gravity is 30.
+
+## 13. Facing, particles, projection
+
+- **Directional sprites**: `entity.model = base.rotated(k)` -- k quarter
+  turns around h, cached, one .ivx serves four facings. See rampage.
+- **Debris**: `rubble = world.carve(u, v, h, r)` returns the removed voxels;
+  `isovox.fx.debris(world, rubble)` sprays them as gravity-obeying, ttl-reaped
+  particles in the real colors of what broke. Any entity can set `ttl`.
+- **Projection metrics** (`Game.metrics`): `"wide"` (default) is true 2:1
+  isometric on normal terminal cells; `"square"` is the original wallpaper
+  geometry for square-ish grids (PNG export with `--ratio 1.16`, or a
+  terminal tuned to near-square cells). See isovox/project.py.
+- Ground texture: glyph `"."` renders as ONE dot per cell (wallpaper-style
+  stipple); any other glyph fills the whole top face. Distant columns fade
+  toward the background automatically; back edges glint.

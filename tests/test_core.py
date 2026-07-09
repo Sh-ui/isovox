@@ -5,14 +5,30 @@ import pytest
 from isovox.buffer import CharBuffer
 from isovox.model import VoxModel
 from isovox.palette import lerp, resolve, shades
-from isovox.project import Camera, project
+from isovox.project import SQUARE, WIDE, Camera, project
 
 
-def test_project_shear():
-    assert project(0, 0, 0) == (0.0, 0.0)
-    assert project(1, 0, 0) == (2.0, 1.0)     # u: down-right
-    assert project(0, 1, 0) == (-2.0, 1.0)    # v: down-left
-    assert project(0, 0, 3) == (0.0, -3.0)    # h: straight up
+def test_project_shear_square():
+    assert project(0, 0, 0, SQUARE) == (0.0, 0.0)
+    assert project(1, 0, 0, SQUARE) == (2.0, 1.0)     # u: down-right
+    assert project(0, 1, 0, SQUARE) == (-2.0, 1.0)    # v: down-left
+    assert project(0, 0, 3, SQUARE) == (0.0, -3.0)    # h: straight up
+
+
+def test_project_shear_wide():
+    assert project(1, 0, 0, WIDE) == (4.0, 1.0)       # 2:1 on 1:2 cells
+    assert project(0, 1, 0, WIDE) == (-4.0, 1.0)
+    assert project(0, 0, 2, WIDE) == (0.0, -4.0)      # 2 rows per height
+
+
+def test_model_rotated():
+    # L-shape: voxels at (0,0), (0,1), (1,0)
+    m = VoxModel.parse("@r red\n#0\nrr\nr.\n")
+    r1 = m.rotated(1)                        # (u,v) -> (v, du-1-u)
+    assert set(r1.voxels) == {(0, 1, 0), (1, 1, 0), (0, 0, 0)}
+    assert m.rotated(4) is m                 # full turn = same object
+    assert set(m.rotated(2).rotated(2).voxels) == set(m.voxels)
+    assert m.rotated(1) is m.rotated(1)      # cached
 
 
 def test_camera_centers_target():

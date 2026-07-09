@@ -2,8 +2,14 @@
 
 Per frame: merge terrain voxels and entity voxels into per-column stacks,
 paint columns back-to-front (ascending u + v), and inside each column paint
-contiguous stacks as a 2x2-char top face plus one wall row per voxel of
-height (left char lit, right char dark). Painter order gives occlusion free.
+each exposed voxel top as a topw x toph char block plus hrow wall rows per
+voxel (left half lit, right half dark). Painter order gives occlusion free.
+
+Depth cues, straight from the wallpaper:
+ - atmospheric fade: columns far behind the camera center blend toward the
+   background (quantized so the color cache stays hot)
+ - rim glint: BACK edges only (a lower neighbor at u-1 or v-1) get a cream
+   lift, outlining top surfaces without flattening the front walls
 
 Terrain columns are cached against World.version (terrain changes rarely;
 entities move every frame), so the per-frame cost is proportional to entity
@@ -13,13 +19,16 @@ voxels plus visible columns, not total terrain size. Matters on small CPUs.
 from __future__ import annotations
 
 from .buffer import CharBuffer
-from .palette import glint, shades
+from .palette import glint, lerp, shades
 from .project import Camera
 from .world import World
 
 Column = dict[tuple[int, int], list[tuple[int, str, str]]]  # (u,v) -> [(h, glyph, color)]
 
 _NEG_INF = -(10 ** 9)
+FADE_PER_STEP = 0.035   # how fast far columns sink into the background
+FADE_FREE = 6           # steps behind camera center before fading starts
+FADE_MAX = 0.55
 
 
 def _terrain_columns(world: World) -> tuple[Column, dict[tuple[int, int], int]]:
@@ -39,6 +48,7 @@ def _terrain_columns(world: World) -> tuple[Column, dict[tuple[int, int], int]]:
 
 def raster(world: World, camera: Camera, buf: CharBuffer) -> None:
     buf.clear()
+    m = camera.metrics
     c0, r0 = camera.anchor(buf.width, buf.height)
     base_cols, base_top = _terrain_columns(world)
 
@@ -65,34 +75,57 @@ def raster(world: World, camera: Camera, buf: CharBuffer) -> None:
     w = buf.width
     bg = buf.bg
     put = buf.put
+    cdepth = camera.center[0] + camera.center[1]
+    half = m.topw // 2
 
     for (u, v) in sorted(cols, key=lambda k: k[0] + k[1]):
-        c = round(c0 + 2 * (u - v))
-        rb = round(r0 + u + v)          # row of the h=0 ground line
-        if c < -1 or c >= w:
+        c = round(c0 + m.ucol * (u - v))
+        if c <= -m.topw or c >= w:
             continue
-        stack = cols[(u, v)]            # ascending h
+        rb = round(r0 + m.urow * (u + v))     # h=0 ground line
+        stack = cols[(u, v)]                  # ascending h
 
-        # top face (2x2 block) of each local stack top (no voxel directly above)
+        # atmospheric fade: dead zone keeps the play area uniform (no banding
+        # across nearby flat surfaces), then coarse 0.1 steps into the distance
+        dist = cdepth - (u + v) - FADE_FREE
+        fade = 0.0 if dist <= 0 else min(FADE_MAX, round(dist * FADE_PER_STEP * 10) / 10)
+
+        # top face of each local stack top (no voxel directly above)
         present = {h for h, _, _ in stack}
         for h, gl, color in stack:
             if h + 1 in present:
                 continue
-            rt = rb - h - 1             # top rows rt, rt+1; walls start at rt+2
-            exposed = any(
-                top_of.get(nb, _NEG_INF) < h
-                for nb in ((u - 1, v), (u + 1, v), (u, v - 1), (u, v + 1))
-            )
+            if fade:
+                color = lerp(color, bg, fade)
+            top_end = rb + m.toph - 1 - m.hrow * (h + 1)
+            # back-edge glint only: lower back neighbors outline the surface
+            exposed = (top_of.get((u - 1, v), _NEG_INF) < h or
+                       top_of.get((u, v - 1), _NEG_INF) < h)
             tc = glint(color) if exposed else color
-            put(rt, c, gl, tc)
-            put(rt, c + 1, gl, tc)
-            put(rt + 1, c, gl, tc)
-            put(rt + 1, c + 1, gl, tc)
+            if gl == ".":
+                # stipple: one dot per world cell, wallpaper-style, instead
+                # of a solid block of periods
+                put(top_end, c + half - 1, ".", tc)
+            else:
+                for rr in range(top_end - m.toph + 1, top_end + 1):
+                    for cc in range(c, c + m.topw):
+                        put(rr, cc, gl, tc)
 
-        # walls after tops: one row per voxel (its front face), left lit, right dark
+        # walls after tops: hrow rows per voxel, left half lit, right half dark.
+        # a wall is only visible if the column diagonally in front is lower;
+        # interior walls of flat surfaces are skipped (thinned "." tops no
+        # longer over-paint them, and it is cheaper besides)
+        front_top = top_of.get((u + 1, v + 1), _NEG_INF)
         for h, gl, color in stack:
-            wr = rb + 1 - h
+            if front_top >= h:
+                continue
+            if fade:
+                color = lerp(color, bg, fade)
             _, wl_col, wr_col = shades(color, bg)
             wg = gl if gl not in (".", " ") else ":"
-            put(wr, c, wg, wl_col)
-            put(wr, c + 1, wg, wr_col)
+            hi = rb + m.toph - 1 - m.hrow * h
+            for rr in range(hi - m.hrow + 1, hi + 1):
+                for cc in range(c, c + half):
+                    put(rr, cc, wg, wl_col)
+                for cc in range(c + half, c + m.topw):
+                    put(rr, cc, wg, wr_col)

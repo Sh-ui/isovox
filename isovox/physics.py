@@ -13,7 +13,7 @@ import math
 
 from .world import World, Entity
 
-GRAVITY = 22.0  # cells / s^2, tuned for chunky arcade jumps
+GRAVITY = 30.0  # default cells/s^2; override per-game via world.gravity
 
 
 def _blocked(world: World, e: Entity, u: float, v: float, h: float) -> bool:
@@ -42,7 +42,7 @@ def step(world: World, dt: float) -> list[tuple[Entity, Entity]]:
         vu, vv, vh = e.vel
 
         if e.gravity:
-            vh -= GRAVITY * dt
+            vh -= getattr(world, "gravity", GRAVITY) * dt
 
         if not e.solid:
             e.pos = [u + vu * dt, v + vv * dt, h + vh * dt]

@@ -19,7 +19,7 @@ from . import physics
 from .buffer import CharBuffer
 from .palette import UMBRA
 from .ports import Clock, Input, Key, Quit, Renderer
-from .project import Camera
+from .project import METRICS, Camera
 from .world import World
 
 
@@ -27,10 +27,11 @@ class Game:
     bg = UMBRA
     fps = 30
     size: tuple[int, int] | None = None   # (cols, rows); None = fill terminal
+    metrics = "wide"    # projection preset: "wide" (terminals) or "square" (see project.py)
 
     def __init__(self):
         self.world = World()
-        self.camera = Camera()
+        self.camera = Camera(metrics=METRICS[self.metrics])
         self.over = False        # set True to end the game
 
     # override these three
@@ -79,6 +80,11 @@ class Engine:
         self.game.update(dt, [e for e in events if isinstance(e, Key)])
         for a, b in physics.step(self.game.world, dt):
             self.game.on_collide(a, b)
+        for e in self.game.world.entities:
+            if e.ttl is not None:
+                e.ttl -= dt
+                if e.ttl <= 0:
+                    e.alive = False
         self.game.world.reap()
         self.game.camera.update()
         from .raster import raster
