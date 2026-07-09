@@ -61,13 +61,17 @@ class World:
         self.entities: list[Entity] = []
         # floor_h: implicit infinite floor entities rest on (None = bottomless)
         self.floor_h = floor_h
+        # bumped on every terrain change; raster caches terrain columns by it
+        self.version = 0
 
     # -- terrain ---------------------------------------------------------
     def set(self, u: int, v: int, h: int, color: str, glyph: str = "#") -> None:
         self.terrain[(u, v, h)] = (glyph, resolve(color))
+        self.version += 1
 
     def clear(self, u: int, v: int, h: int) -> None:
         self.terrain.pop((u, v, h), None)
+        self.version += 1
 
     def fill(self, u0: int, v0: int, u1: int, v1: int,
              h0: int, h1: int, color: str, glyph: str = "#") -> None:
@@ -77,11 +81,13 @@ class World:
             for v in range(v0, v1):
                 for h in range(h0, h1):
                     self.terrain[(u, v, h)] = vox
+        self.version += 1
 
     def stamp(self, model: VoxModel, u: int, v: int, h: int = 0) -> None:
         """Bake a voxel model into terrain (buildings, props)."""
         for (mu, mv, mh), vox in model.voxels.items():
             self.terrain[(u + mu, v + mv, h + mh)] = vox
+        self.version += 1
 
     def carve(self, u: int, v: int, h: int, radius: int = 1) -> int:
         """Remove terrain in a cube around a point; returns voxels removed."""
@@ -91,6 +97,8 @@ class World:
                 for dh in range(-radius, radius + 1):
                     if self.terrain.pop((u + du, v + dv, h + dh), None) is not None:
                         removed += 1
+        if removed:
+            self.version += 1
         return removed
 
     def is_solid(self, u: int, v: int, h: int) -> bool:
