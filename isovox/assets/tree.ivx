@@ -1,0 +1,9 @@
+; a small tree: trunk + leaf blob
+@t coffee |
+@l green &
+#0
+t
+#1
+t
+#2
+l

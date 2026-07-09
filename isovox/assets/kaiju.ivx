@@ -1,0 +1,15 @@
+; the kaiju: 2x2 footprint, 4 tall, with eyes
+@g magenta %
+@e yellow *
+#0
+gg
+gg
+#1
+gg
+gg
+#2
+gg
+gg
+#3
+ge
+gg

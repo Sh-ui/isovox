@@ -1,0 +1,127 @@
+# isovox
+
+A tiny isometric ASCII voxel game engine that runs **live in your terminal**.
+Zero dependencies. Pure Python. Hexagonal to the bone.
+
+```
+                    ##  <- a building you can smash
+                  ######
+                  ######            oo  <- a little guy you can hop
+                  ######            @@
+      - - - - - - - - - - - - - -   <- a road with cars that flatten him
+```
+
+Born from a one-off generative wallpaper renderer (isometric circuit board in
+ASCII) that turned out to be a perfectly good game renderer once it learned to
+redraw 30 times a second.
+
+## What it does
+
+- **Isometric voxel worlds** on a diamond lattice: 2:1 character shear,
+  painter's-algorithm occlusion, three-face shading (lit top, mid left wall,
+  dark right wall) -- the classic look, in truecolor ANSI.
+- **Playable in the terminal**: raw keyboard input, diff-based rendering
+  (only changed cells are rewritten), comfortably 30+ fps.
+- **Arcade physics**: gravity, jumps, terrain blocking, entity overlap events.
+  Enough for a crossy-road, a smashy-road, or a kaiju stomping buildings --
+  the three games it was designed around.
+- **Fully destructible terrain** by construction (it's a dict of voxels).
+- **Headless by design**: every game can run without a TTY, print frames as
+  plain text, or export PNG stills. Tests and AI coding agents drive the
+  exact same engine the player plays.
+
+## Install
+
+Needs Python 3.10+. No dependencies for playing in the terminal.
+
+```sh
+git clone <this repo> && cd isovox
+python3 -m examples.hopper      # crossy-road: arrows hop, q quits
+python3 -m examples.rampage     # kaiju: arrows walk, space smashes
+```
+
+Optional: `pip install pillow` if you want PNG export.
+
+## Write a game in 20 lines
+
+```python
+from isovox import Game, VoxModel, Entity, run
+
+class Sandbox(Game):
+    def setup(self):
+        for u in range(12):
+            for v in range(12):
+                self.world.set(u, v, 0, "#3A5F3A", ".")
+        self.world.stamp(VoxModel.box(3, 3, 5, "blue"), 4, 4, 1)
+        self.player = self.world.spawn(Entity(
+            VoxModel.box(1, 1, 2, "mint", "@"), pos=(1, 1, 1), gravity=True))
+        self.camera.follow(self.player)
+
+    def update(self, dt, events):
+        for e in events:
+            du, dv = {"up": (-1, 0), "down": (1, 0),
+                      "left": (0, 1), "right": (0, -1)}.get(e.name, (0, 0))
+            self.player.vel[0], self.player.vel[1] = du * 6.0, dv * 6.0
+
+run(Sandbox())
+```
+
+Full guide: **[docs/making-games.md](docs/making-games.md)**.
+Working with an AI agent: **[AGENTS.md](AGENTS.md)**.
+
+## See a frame without a terminal
+
+The snapshot CLI runs any game headless for N frames (optionally feeding
+scripted keys) and prints the frame -- this is how an AI agent, a test, or a
+CI job "looks at" the game:
+
+```sh
+python3 -m isovox.snapshot examples.hopper --frames 60 --keys up,.,.,up
+python3 -m isovox.snapshot examples.rampage --ansi          # truecolor
+python3 -m isovox.snapshot examples.rampage --png frame.png # needs pillow
+```
+
+## Architecture (hexagonal)
+
+The core is pure -- no I/O, no ANSI, no fonts, no clocks. Adapters plug into
+three small ports.
+
+```
+            +---------------------------- core (pure) ---+
+            |  world.py    voxel terrain + entities      |
+            |  physics.py  gravity / blocking / overlaps |
+            |  raster.py   world -> CharBuffer           |
+            |  project.py  iso math + camera             |
+            |  model.py    .ivx voxel sprites            |
+            |  engine.py   the game loop                 |
+            +----+-----------------+----------------+----+
+                 |                 |                |
+             Renderer port     Input port       Clock port
+                 |                 |                |
+       +---------+-------+   +-----+------+   +----+------+
+       | terminal (ANSI) |   | terminal   |   | SysClock  |
+       | headless (text) |   | scripted   |   | FixedClock|
+       | png (Pillow)    |   +------------+   +-----------+
+       +-----------------+
+```
+
+Want SDL, a web canvas, or sixel graphics? Write one class satisfying the
+`Renderer` protocol in `isovox/ports.py`. The core never changes.
+
+## Coordinates, 10 seconds
+
+- `u` runs down-right on screen, `v` runs down-left, `h` is up.
+- One world cell = a 2x2 character block: `col = 2*(u-v)`, `row = u+v-h`.
+- Depth sort is just `u+v` ascending. That's the whole trick.
+
+## Why not <existing thing>?
+
+python-tcod / asciimatics / blessed are fine libraries, but they solve
+terminal plumbing, not isometric voxel worlds -- and the plumbing this needs
+(one raw-mode input, one diff renderer) is ~150 lines with zero deps. The
+interesting part is the raster + world model, which nothing on the shelf
+provided. The ports mean any of those libraries can still become an adapter.
+
+## License
+
+MIT.

@@ -1,0 +1,14 @@
+; a chunky little car, 4 long (u) x 2 wide (v), cab on top
+@b red =
+@w slate o
+@g #B8B2A9 -
+#0
+bb
+bb
+bb
+bb
+#1
+..
+gg
+gg
+..

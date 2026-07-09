@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "isovox"
+version = "0.1.0"
+description = "Tiny isometric ASCII voxel game engine that runs live in your terminal"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Ian Schuepbach" }]
+keywords = ["terminal", "game-engine", "isometric", "voxel", "ascii", "tui"]
+dependencies = []
+
+[project.optional-dependencies]
+png = ["pillow"]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["isovox*"]
+
+[tool.setuptools.package-data]
+"isovox.assets" = ["*.ivx"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

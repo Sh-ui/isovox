@@ -1,0 +1,7 @@
+; a 1x1 little guy: body voxel + head voxel
+@b mint @
+@h cream o
+#0
+b
+#1
+h
