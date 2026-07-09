@@ -13,6 +13,7 @@ import shutil
 import sys
 import termios
 import tty
+from functools import lru_cache
 
 from ..buffer import CharBuffer
 from ..ports import Event, Key, Quit
@@ -24,16 +25,51 @@ def term_size() -> tuple[int, int]:
     return cols, rows - 1
 
 
-def _sgr(color: str) -> str:
+def detect_truecolor() -> bool:
+    """Apple Terminal has no 24-bit color; VTE/iTerm2/kitty advertise it."""
+    if os.environ.get("COLORTERM", "").lower() in ("truecolor", "24bit"):
+        return True
+    if os.environ.get("TERM_PROGRAM") == "Apple_Terminal":
+        return False
+    return "256" not in os.environ.get("TERM", "")   # xterm-256color -> fall back
+
+
+_CUBE = (0, 95, 135, 175, 215, 255)
+
+
+@lru_cache(maxsize=4096)
+def _x256(color: str) -> int:
+    """Nearest xterm-256 index for #rrggbb (6x6x6 cube or gray ramp)."""
     r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
-    return f"\x1b[38;2;{r};{g};{b}m"
+    ci = [min(range(6), key=lambda i: abs(_CUBE[i] - ch)) for ch in (r, g, b)]
+    cube = 16 + 36 * ci[0] + 6 * ci[1] + ci[2]
+    cr, cg, cb = (_CUBE[i] for i in ci)
+    cube_err = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2
+    lum = (r + g + b) // 3
+    gi = max(0, min(23, round((lum - 8) / 10)))     # gray ramp: 8 + 10*i
+    gl = 8 + 10 * gi
+    gray_err = (r - gl) ** 2 + (g - gl) ** 2 + (b - gl) ** 2
+    return 232 + gi if gray_err < cube_err else cube
 
 
 class TermRenderer:
-    def __init__(self, out=None):
+    def __init__(self, out=None, truecolor: bool | None = None):
         self.out = out or sys.stdout
+        self.truecolor = detect_truecolor() if truecolor is None else truecolor
         self._prev: list[list] | None = None
         self._bg = None
+
+    def _sgr(self, color: str) -> str:
+        if self.truecolor:
+            r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+            return f"\x1b[38;2;{r};{g};{b}m"
+        return f"\x1b[38;5;{_x256(color)}m"
+
+    def _sgr_bg(self, color: str) -> str:
+        if self.truecolor:
+            r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+            return f"\x1b[48;2;{r};{g};{b}m"
+        return f"\x1b[48;5;{_x256(color)}m"
 
     def open(self, width: int, height: int) -> None:
         # alt screen, hidden cursor, cleared
@@ -45,8 +81,7 @@ class TermRenderer:
         w = []
         if self._bg != buf.bg:
             self._bg = buf.bg
-            r, g, b = int(buf.bg[1:3], 16), int(buf.bg[3:5], 16), int(buf.bg[5:7], 16)
-            w.append(f"\x1b[48;2;{r};{g};{b}m\x1b[2J")
+            w.append(self._sgr_bg(buf.bg) + "\x1b[2J")
             self._prev = None
         prev = self._prev
         color = None
@@ -62,7 +97,7 @@ class TermRenderer:
                 while col < buf.width and not (prow and prow[col] == row[col]):
                     ch, c = row[col]
                     if c != color:
-                        w.append(_sgr(c))
+                        w.append(self._sgr(c))
                         color = c
                     w.append(ch)
                     col += 1
