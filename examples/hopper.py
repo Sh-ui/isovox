@@ -1,13 +1,18 @@
 """Hopper -- a crossy-road demo. Arrows hop, cars flatten, q quits.
 
-Run it:     python -m examples.hopper       (from the repo root)
+Run it:     python3 hopper.py               (from examples/, any cwd)
+       or:  python3 -m examples.hopper      (from the repo root)
 Peek at it: python -m isovox.snapshot examples.hopper --frames 40 --ansi
 """
 
 from __future__ import annotations
 
 import os
+import sys
 import random
+
+if __package__ in (None, ""):   # running as a plain script, not `-m examples.hopper`
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from isovox import Entity, Game, VoxModel, run
 from isovox.palette import UMBRA, lerp

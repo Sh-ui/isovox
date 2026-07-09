@@ -40,6 +40,8 @@ python3 -m examples.hopper      # crossy-road: arrows hop, q quits
 python3 -m examples.rampage     # kaiju: arrows walk, space smashes
 ```
 
+(Or `cd examples && python3 hopper.py` -- both work from anywhere.)
+
 Optional: `pip install pillow` if you want PNG export.
 
 ## Write a game in 20 lines

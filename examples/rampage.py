@@ -1,16 +1,20 @@
 """Rampage -- a kaiju demo. Arrows walk, space smashes buildings, q quits.
 
-Run it:     python -m examples.rampage      (from the repo root)
+Run it:     python3 rampage.py              (from examples/, any cwd)
+       or:  python3 -m examples.rampage     (from the repo root)
 Peek at it: python -m isovox.snapshot examples.rampage --frames 40 --ansi
 """
 
 from __future__ import annotations
 
 import os
+import sys
 import random
 
-from isovox import Entity, Game, VoxModel, run
-from isovox import fx
+if __package__ in (None, ""):   # running as a plain script, not `-m examples.rampage`
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from isovox import Entity, Game, VoxModel, fx, run
 from isovox.palette import UMBRA, lerp
 
 ASSETS = os.path.join(os.path.dirname(__file__), "..", "isovox", "assets")
