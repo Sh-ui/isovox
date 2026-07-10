@@ -25,6 +25,9 @@ redraw 30 times a second.
 - **Arcade physics**: gravity, jumps, terrain blocking, entity overlap events.
   Enough for a crossy-road, a smashy-road, or a kaiju stomping buildings --
   the three games it was designed around.
+- **Procedural sprites** (`isovox.sprites`): dense humanoid / vehicle / tree /
+  kaiju rigs and stepped, windowed towers that actually read as chunky 3D
+  cubes, with per-face texturing (glass cabins, lit windows, bark, scales).
 - **Fully destructible terrain** by construction (it's a dict of voxels).
 - **Headless by design**: every game can run without a TTY, print frames as
   plain text, or export PNG stills. Tests and AI coding agents drive the
@@ -47,16 +50,17 @@ Optional: `pip install pillow` if you want PNG export.
 ## Write a game in 20 lines
 
 ```python
-from isovox import Game, VoxModel, Entity, run
+from isovox import Game, Entity, run
+from isovox.sprites import humanoid, tower
 
 class Sandbox(Game):
     def setup(self):
         for u in range(12):
             for v in range(12):
                 self.world.set(u, v, 0, "#3A5F3A", ".")
-        self.world.stamp(VoxModel.box(3, 3, 5, "blue"), 4, 4, 1)
+        self.world.stamp(tower(4, 4, 6, "blue", step=3, window="#16324A"), 5, 5, 1)
         self.player = self.world.spawn(Entity(
-            VoxModel.box(1, 1, 2, "mint", "@"), pos=(1, 1, 1), gravity=True))
+            humanoid(), pos=(1, 1, 1), gravity=True))
         self.camera.follow(self.player)
 
     def update(self, dt, events):
@@ -95,6 +99,7 @@ three small ports.
             |  raster.py   world -> CharBuffer           |
             |  project.py  iso math + camera             |
             |  model.py    .ivx voxel sprites            |
+            |  sprites.py  procedural rigs + primitives  |
             |  engine.py   the game loop                 |
             +----+-----------------+----------------+----+
                  |                 |                |
@@ -113,8 +118,23 @@ Want SDL, a web canvas, or sixel graphics? Write one class satisfying the
 ## Coordinates, 10 seconds
 
 - `u` runs down-right on screen, `v` runs down-left, `h` is up.
-- One world cell = a 2x2 character block: `col = 2*(u-v)`, `row = u+v-h`.
+- Default (`wide`) metrics: one world cell = a 4x2-char top face,
+  `col = 4*(u-v)`, `row = u+v - 2*h`, 2 wall rows per voxel of height --
+  true 2:1 isometric on ~1:2 terminal cells. (`square` metrics are the
+  original wallpaper's 2x2 geometry, for near-square cells / PNG export.)
 - Depth sort is just `u+v` ascending. That's the whole trick.
+
+## Sprites that read as cubes
+
+One lonely voxel is a 4x2 blob; the iso illusion comes from *stacked,
+adjacent* voxels -- wall faces to shade, edges to glint, steps in the
+silhouette. `isovox.sprites` generates geometry at that density: `humanoid()`
+(2x2x4: legs/torso/head), `vehicle()` (glazed cabin + headlight), `tree()`
+(walk-under canopy), `kaiju()` (3x3x7 with claws and eyes), and parametric
+`tower(...)` buildings with stepped shoulders and lit windows. Every face
+(top / left wall / right wall) can carry its own color and glyph. The shipped
+`.ivx` assets are `dumps()` of these rigs; see
+[docs/making-games.md](docs/making-games.md#4b-procedural-sprites-isovoxsprites).
 
 ## Why not <existing thing>?
 

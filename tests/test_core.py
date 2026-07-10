@@ -61,6 +61,27 @@ def test_model_parse_rejects_unknown_key():
         VoxModel.parse("#0\nx\n")
 
 
+def test_model_parse_face_overrides():
+    m = VoxModel.parse("@c red = top=#802020 left=#9FD4E8:# right=blue::\n#0\nc\n")
+    glyph, color, (top, left, right) = m.voxels[(0, 0, 0)]
+    assert (glyph, color) == ("=", resolve("red"))
+    assert top == ("=", "#802020")            # face glyph defaults to base
+    assert left == ("#", "#9FD4E8")           # explicit face glyph
+    assert right == (":", resolve("blue"))    # ':' itself works as a glyph
+
+
+def test_model_parse_rejects_bad_face_token():
+    with pytest.raises(ValueError):
+        VoxModel.parse("@c red sideways=#112233\n#0\nc\n")
+
+
+def test_model_dumps_roundtrip_mixed_materials():
+    m = VoxModel.parse("@r red\n@b #112233 # top=cream:^\n#0\nrb\n#2\n.r\n")
+    again = VoxModel.parse(m.dumps("roundtrip"))
+    assert again.voxels == m.voxels
+    assert again.size == m.size
+
+
 def test_box():
     m = VoxModel.box(2, 3, 4, "blue")
     assert len(m.voxels) == 24

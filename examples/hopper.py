@@ -45,9 +45,11 @@ class Hopper(Game):
             if is_road:
                 self._spawn_cars(u)
             else:
-                for v in self.rng.sample(range(-WIDTH + 1, WIDTH), 3):
+                for v in self.rng.sample(range(-WIDTH + 1, WIDTH), 2):
                     if u < START_U - 1:
-                        self.world.stamp(self.tree, u, v, 1)
+                        # trunk on (u, v); the 3x3 canopy floats high enough
+                        # that only the trunk blocks hops (see sprites.tree)
+                        self.world.stamp(self.tree, u - 1, v - 1, 1)
 
         self.world.gravity = 60.0        # short snappy hop arcs
         self.pending = None              # buffered input: land -> hop immediately
@@ -59,9 +61,11 @@ class Hopper(Game):
 
     def _spawn_cars(self, u):
         speed = self.rng.choice([3.0, 4.5, 6.0]) * self.rng.choice([1, -1])
+        # oncoming traffic about-faces the sprite (cabin + headlight flip)
+        model = self.car_model if speed > 0 else self.car_model.rotated(2)
         for i in range(self.rng.randint(1, 2)):
             v = self.rng.uniform(-WIDTH, WIDTH)
-            car = self.world.spawn(Entity(self.car_model, pos=(u, v, 1), tag="car"))
+            car = self.world.spawn(Entity(model, pos=(u, v, 1), tag="car"))
             car.vel[1] = speed
 
     def update(self, dt, events):
@@ -77,14 +81,17 @@ class Hopper(Game):
             du, dv = self.pending
             self.pending = None
             nu, nv = round(p.pos[0]) + du, round(p.pos[1]) + dv
-            if abs(nv) <= WIDTH and not self.world.is_solid(nu, nv, 1):
+            pu, pv, _ = p.model.size
+            free = all(not self.world.is_solid(nu + a, nv + b, 1)
+                       for a in range(pu) for b in range(pv))
+            if -WIDTH <= nv <= WIDTH - pv + 1 and free:
                 p.pos[0], p.pos[1] = float(nu), float(nv)
                 p.vel[2] = 9.0           # with gravity 60: ~0.3s, ~0.7 cell arc
-        # cars wrap around the playfield edges
+        # cars wrap around the playfield edges (cars are 4 cells long in v)
         for car in self.world.by_tag("car"):
             if car.pos[1] > WIDTH + 4:
-                car.pos[1] = -WIDTH - 4.0
-            elif car.pos[1] < -WIDTH - 4:
+                car.pos[1] = -WIDTH - 8.0
+            elif car.pos[1] < -WIDTH - 8:
                 car.pos[1] = WIDTH + 4.0
         self.best = max(self.best, START_U - round(p.pos[0]))
         if p.pos[2] < -8:                # hopped off the world

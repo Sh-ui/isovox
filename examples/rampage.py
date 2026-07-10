@@ -16,9 +16,11 @@ if __package__ in (None, ""):   # running as a plain script, not `-m examples.ra
 
 from isovox import Entity, Game, VoxModel, fx, run
 from isovox.palette import UMBRA, lerp
+from isovox.sprites import tower
 
 ASSETS = os.path.join(os.path.dirname(__file__), "..", "isovox", "assets")
 CITY = 26           # city is CITY x CITY cells
+BLOCK = 7           # block pitch: 3-4 cell buildings + 3-4 cell streets
 
 
 class Rampage(Game):
@@ -28,20 +30,25 @@ class Rampage(Game):
         for u in range(-2, CITY + 2):
             for v in range(-2, CITY + 2):
                 self.world.set(u, v, 0, ground, ".")
-        # city blocks on a loose grid
-        for bu in range(0, CITY, 5):
-            for bv in range(0, CITY, 5):
+        # city blocks on a loose grid: stepped, windowed towers (streets stay
+        # >= 3 cells wide so the 3x3 kaiju can roam them)
+        for bu in range(0, CITY, BLOCK):
+            for bv in range(0, CITY, BLOCK):
                 if rng.random() < 0.2:
                     continue
-                w, d = rng.randint(2, 3), rng.randint(2, 3)
-                hgt = rng.randint(3, 8)
-                color = rng.choice(["blue", "purple", "teal", "orange", "slate"])
-                tower = VoxModel.box(w, d, hgt, lerp(color, UMBRA, 0.25), "#")
-                self.world.stamp(tower, bu + 1, bv + 1, 1)
+                w, d = rng.randint(3, 4), rng.randint(3, 4)
+                hgt = rng.randint(4, 9)
+                color = lerp(rng.choice(
+                    ["blue", "purple", "teal", "orange", "slate"]), UMBRA, 0.25)
+                self.world.stamp(
+                    tower(w, d, hgt, color, step=3,
+                          roof=lerp(color, UMBRA, 0.4),
+                          window="#16324A", rng=rng),
+                    bu + 1, bv + 1, 1)
 
         self.kaiju_base = VoxModel.load(os.path.join(ASSETS, "kaiju.ivx"))
         self.kaiju = self.world.spawn(Entity(
-            self.kaiju_base, pos=(CITY // 2, CITY // 2, 1),
+            self.kaiju_base, pos=(12, 12, 1),   # a street crossing
             gravity=True, tag="kaiju"))
         self.camera.follow(self.kaiju)
         self.smashed = 0
@@ -63,9 +70,13 @@ class Rampage(Game):
                 k.vel[0], k.vel[1] = du * 8.0, dv * 8.0
                 self.move_until = self.t + 0.55   # outlast the repeat delay
             elif e.name == " ":
+                # carve the 3x3 face one cell past the monster's front
                 fu, fv = self.facing
-                cu = round(k.pos[0]) + fu * 2
-                cv = round(k.pos[1]) + fv * 2
+                du_, dv_, _ = k.model.size
+                cu = round(k.pos[0]) + (du_ if fu > 0 else
+                                        (-1 if fu < 0 else du_ // 2))
+                cv = round(k.pos[1]) + (dv_ if fv > 0 else
+                                        (-1 if fv < 0 else dv_ // 2))
                 for h in (1, 3, 5):      # swipe a column of the building face
                     rubble = self.world.carve(cu, cv, h, radius=1)
                     self.smashed += len(rubble)

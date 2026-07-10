@@ -30,8 +30,9 @@ def debris(world: World, removed: list, *, count: int = 12,
         return
     rng = rng or random
     picks = removed if len(removed) <= count else rng.sample(removed, count)
-    for (u, v, h), (_, color) in picks:
-        m = VoxModel({(0, 0, 0): (rng.choice(_GLYPHS), color)})
+    for (u, v, h), voxel in picks:
+        # voxel[1] is the color; voxels may carry per-face data (3-tuples)
+        m = VoxModel({(0, 0, 0): (rng.choice(_GLYPHS), voxel[1])})
         e = Entity(m, pos=(u, v, h), solid=False, gravity=True,
                    tag="fx", ttl=ttl * rng.uniform(0.6, 1.2))
         e.vel = [rng.uniform(-speed, speed),

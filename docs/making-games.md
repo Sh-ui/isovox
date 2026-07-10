@@ -86,6 +86,57 @@ car = VoxModel.load("assets/car.ivx")
 tower = VoxModel.box(3, 3, 8, "purple", "#")   # or generate in code
 ```
 
+A palette key may also give individual faces their own material --
+`face=COLOR` or `face=COLOR:GLYPH` for `top`, `left`, `right`:
+
+```
+@c red = top=#802020 left=#9FD4E8:# right=#9FD4E8:#   ; painted roof, glass walls
+```
+
+Face materials are screen-space (top / camera-left / camera-right as drawn);
+`rotated()` turns the geometry and the face data rides along -- the right
+cheat when there is exactly one camera angle. `VoxModel.dumps()` writes any
+model back out as .ivx text.
+
+## 4b. Procedural sprites (isovox.sprites)
+
+**The density rule**: one voxel is a 4x2-char top plus 2 wall rows (wide
+metrics). A 1x1x2 "guy" is a blob; the cube illusion needs stacked, adjacent
+voxels -- wall faces to shade, edges to glint, silhouette steps. Anything the
+player should read as an object wants a 2x2+ footprint (or a long axis of 4)
+and 3+ voxels of height with at least one step (cabin, head, canopy, taper).
+
+`isovox.sprites` generates at that density:
+
+```python
+from isovox import sprites
+
+guy   = sprites.humanoid()                  # 2x2x4 legs/torso/head, eyes, hair
+car   = sprites.vehicle(body="teal")        # 1x4x3 chassis/body/glazed cabin
+tree  = sprites.tree()                      # tall 1x1 trunk, 3x3 canopy on top
+boss  = sprites.kaiju(hide="red")           # 3x3x7 legs/tail/torso/claws/head
+bldg  = sprites.tower(4, 4, 8, "purple",    # stepped tower, lit windows
+                      step=3, roof="grey", window="#16324A")
+
+self.world.stamp(bldg, 10, 10, 1)
+self.world.spawn(Entity(guy, pos=(1, 1, 1), gravity=True))
+```
+
+Primitives for your own rigs: `vox(color, glyph, top=, left=, right=)` for a
+single face-textured voxel value, `box(...)` for solid face-textured cuboids,
+and `assemble((model, du, dv, dh), ...)` to overlay parts. Footprints matter:
+physics collides the full model bounding box, so `tree()` lifts its canopy
+above head height (only the trunk blocks walking) and `vehicle()` stays one
+cell deep so it fits a one-cell road lane.
+
+The shipped assets in `isovox/assets/` are `dumps()` of these rigs with
+default arguments (a test pins that) -- regenerate them rather than
+hand-editing:
+
+```sh
+python3 -c "from isovox import sprites; print(sprites.humanoid().dumps())"
+```
+
 ## 5. Entities
 
 ```python
@@ -148,7 +199,8 @@ dark_green = lerp("green", UMBRA, 0.7)
 
 Faces shade automatically: top bright, left wall mid, right wall dark, and
 exposed edges get a cream glint. You pick one color per voxel; the renderer
-does the rest.
+does the rest. (Per-face overrides -- windows, roofs, bark -- still get the
+same wall shading, so textured faces stay part of the lit cube; see 4b.)
 
 ## 10. See it without playing it
 
@@ -173,8 +225,9 @@ from Python with `SnapshotRenderer` / `ScriptedInput` / `FixedClock` from
   (rampage-style input), cops are entities that steer toward you each frame
   (`vel` toward player), and buildings are stamped terrain you must drive
   around.
-- **Kaiju** (`rampage.py`): city = `VoxModel.box` towers stamped into
-  terrain; smashing = `world.carve` in front of the player; score = voxels
+- **Kaiju** (`rampage.py`): city = `sprites.tower(...)` buildings stamped
+  into terrain (leave streets at least as wide as the monster's footprint);
+  smashing = `world.carve` just past the player's front face; score = voxels
   removed.
 
 ## 12. Feel: the two input recipes, refined

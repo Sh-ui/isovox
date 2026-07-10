@@ -14,13 +14,45 @@ Format (see isovox/assets/*.ivx for live examples):
 
 Within a layer, each text line advances u by 1 (down-right axis) and each
 character advances v by 1 (down-left axis). Layers stack upward in h.
+
+Face materials
+--------------
+A voxel is normally one material, (glyph, color); the raster derives the lit
+top / mid left wall / dark right wall from that single color. A voxel may
+instead carry per-face overrides -- (glyph, color, (top, left, right)) where
+each face slot is None or its own (glyph, color) -- so a cabin voxel can have
+a painted roof on top and glass on its walls. In .ivx, faces hang off the
+palette line:
+
+    @c red = top=#802020 left=#9FD4E8:# right=#9FD4E8:#
+
+i.e. face=COLOR or face=COLOR:GLYPH (one glyph char; omitted = base glyph).
+Faces are SCREEN-space (top / camera-left / camera-right as drawn), not
+object-space: rotated() turns the geometry but face data rides along
+unchanged, which is exactly what you want with one fixed camera angle.
+
+isovox.sprites generates dense models programmatically; dumps() writes any
+model back out as .ivx, which is how the shipped assets are produced.
 """
 
 from __future__ import annotations
 
 from .palette import resolve
 
-Voxel = tuple[str, str]  # (glyph, "#rrggbb")
+Face = tuple[str, str]         # (glyph, "#rrggbb")
+Voxel = tuple                  # (glyph, color) or (glyph, color, (top, left, right))
+
+_FACE_NAMES = ("top", "left", "right")
+# keys dumps() may assign; excludes '.', ' ', '@', ';', '#' (format syntax)
+_DUMP_KEYS = ("abcdefghijklmnopqrstuvwxyz"
+              "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+
+def _parse_face(spec: str, base_glyph: str) -> Face:
+    """COLOR or COLOR:GLYPH (glyph is exactly one char, may itself be ':')."""
+    if len(spec) >= 2 and spec[-2] == ":":
+        return (spec[-1], resolve(spec[:-2]))
+    return (base_glyph, resolve(spec))
 
 
 class VoxModel:
@@ -72,11 +104,25 @@ class VoxModel:
                 continue
             if line.startswith("@"):
                 parts = line[1:].split()
-                if len(parts) not in (2, 3):
+                if len(parts) < 2:
                     raise ValueError(f"bad palette line: {raw!r}")
                 key, color = parts[0], resolve(parts[1])
-                glyph = parts[2] if len(parts) == 3 else key
-                key_map[key] = (glyph, color)
+                glyph, face_parts = key, []
+                for p in parts[2:]:
+                    name = p.split("=", 1)[0]
+                    if name in _FACE_NAMES and "=" in p:
+                        face_parts.append((name, p.split("=", 1)[1]))
+                    elif not face_parts and len(p) == 1:
+                        glyph = p           # base glyph (may be '=' etc.)
+                    else:
+                        raise ValueError(f"bad palette token {p!r} in {raw!r}")
+                if face_parts:
+                    faces = [None, None, None]
+                    for name, spec in face_parts:
+                        faces[_FACE_NAMES.index(name)] = _parse_face(spec, glyph)
+                    key_map[key] = (glyph, color, tuple(faces))
+                else:
+                    key_map[key] = (glyph, color)
             elif line.startswith("#"):
                 layer = int(line[1:].strip())
                 u = 0
@@ -96,3 +142,41 @@ class VoxModel:
     def load(cls, path: str) -> "VoxModel":
         with open(path, encoding="utf-8") as f:
             return cls.parse(f.read())
+
+    def dumps(self, comment: str = "") -> str:
+        """Serialize back to .ivx text; parse(dumps(m)) reproduces m.voxels.
+
+        This is how generated sprites (isovox.sprites) become shipped asset
+        files. Keys are assigned per distinct material, a-z then A-Z then 0-9.
+        """
+        seen: dict[Voxel, str] = {}
+        lines = ["; " + comment] if comment else []
+        palette_lines = []
+        for pos in sorted(self.voxels):
+            vox = self.voxels[pos]
+            if vox in seen:
+                continue
+            if len(seen) >= len(_DUMP_KEYS):
+                raise ValueError("too many distinct materials for .ivx keys")
+            key = _DUMP_KEYS[len(seen)]
+            seen[vox] = key
+            glyph, color = vox[0], vox[1]
+            parts = [f"@{key}", color, glyph]
+            if len(vox) > 2:
+                for name, f in zip(_FACE_NAMES, vox[2]):
+                    if f is not None:
+                        fg, fc = f
+                        parts.append(f"{name}={fc}" + ("" if fg == glyph
+                                                       else ":" + fg))
+            palette_lines.append(" ".join(parts))
+        lines += palette_lines
+        du, dv, dh = self.size
+        for h in range(dh):
+            rows = ["".join(seen[self.voxels[(u, v, h)]]
+                            if (u, v, h) in self.voxels else "."
+                            for v in range(dv))
+                    for u in range(du)]
+            if any(r.strip(".") for r in rows):
+                lines.append(f"#{h}")
+                lines += rows
+        return "\n".join(lines) + "\n"
