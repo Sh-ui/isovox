@@ -3,6 +3,8 @@
 A tiny isometric ASCII voxel game engine that runs **live in your terminal**.
 Zero dependencies. Pure Python. Hexagonal to the bone.
 
+![hopper -- the crossy-road demo, played live in a terminal](docs/hopper.gif)
+
 ```
                     ##  <- a building you can smash
                   ######
@@ -44,6 +46,8 @@ python3 -m examples.rampage     # kaiju: arrows walk, space smashes
 ```
 
 (Or `cd examples && python3 hopper.py` -- both work from anywhere.)
+
+![rampage -- the kaiju demo: arrows walk, space smashes](docs/rampage.gif)
 
 Optional: `pip install pillow` if you want PNG export.
 
