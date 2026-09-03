@@ -38,7 +38,7 @@ redraw 30 times a second.
 Needs Python 3.9+. No dependencies for playing in the terminal.
 
 ```sh
-git clone <this repo> && cd isovox
+git clone https://github.com/Sh-ui/isovox && cd isovox
 python3 -m examples.hopper      # crossy-road: arrows hop, q quits
 python3 -m examples.rampage     # kaiju: arrows walk, space smashes
 ```
